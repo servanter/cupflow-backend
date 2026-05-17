@@ -125,7 +125,7 @@ export default function MatchesPage() {
               </div>
               <div className="space-y-2">
                 <Label>赛事阶段</Label>
-                <select className="flex h-10 w-full rounded-md border px-3 py-2 text-sm" value={form.stage} onChange={(e) => setForm({ ...form, stage: e.target.value })}>
+                <select className="flex h-10 w-full rounded-md border px-3 py-2 text-sm" value={form.stage} onChange={(e) => setForm({ ...form, stage: e.target.value, group_name: e.target.value === "小组赛" ? form.group_name : "" })}>
                   <option value="小组赛">小组赛</option>
                   <option value="1/8决赛">1/8决赛</option>
                   <option value="1/4决赛">1/4决赛</option>
@@ -134,10 +134,15 @@ export default function MatchesPage() {
                   <option value="决赛">决赛</option>
                 </select>
               </div>
+              {form.stage === "小组赛" && (
               <div className="space-y-2">
                 <Label>小组</Label>
-                <Input value={form.group_name} onChange={(e) => setForm({ ...form, group_name: e.target.value })} placeholder="如: A组（仅小组赛填写）" />
+                <select className="flex h-10 w-full rounded-md border px-3 py-2 text-sm" value={form.group_name} onChange={(e) => setForm({ ...form, group_name: e.target.value })}>
+                  <option value="">选择小组</option>
+                  {["A组","B组","C组","D组","E组","F组","G组","H组","I组","J组","K组","L组"].map((g) => <option key={g} value={g}>{g}</option>)}
+                </select>
               </div>
+              )}
               <div className="space-y-2">
                 <Label>状态</Label>
                 <select className="flex h-10 w-full rounded-md border px-3 py-2 text-sm" value={form.status} onChange={(e) => setForm({ ...form, status: e.target.value })}>
