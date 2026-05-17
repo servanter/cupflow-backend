@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { query } from "@/lib/db";
 
-// 获取最近赛程：优先今日，若今日无赛事则找最近的比赛日
+// 获取最近赛程：从今天起往后取最近5场（跨天），若未来没有则取最近5场已结束的
 export async function GET(request: NextRequest) {
   try {
     const today = new Date().toISOString().split("T")[0];
@@ -14,58 +14,28 @@ export async function GET(request: NextRequest) {
       LEFT JOIN teams t2 ON m.away_team_id = t2.id
     `;
 
-    // 先查今天
-    const todayMatches = await query(
-      `${baseSql} WHERE m.match_date = ? ORDER BY m.match_time`,
+    // 从今天起，取最近的5场比赛（含今天进行中和未开始的）
+    const upcoming = await query(
+      `${baseSql} WHERE m.match_date >= ? ORDER BY m.match_date, m.match_time LIMIT 5`,
       [today]
     );
 
-    if ((todayMatches as any[]).length > 0) {
+    if ((upcoming as any[]).length > 0) {
       return NextResponse.json({
         code: 200,
-        data: { matches: todayMatches, matchDate: today, isToday: true },
+        data: { matches: upcoming },
       });
     }
 
-    // 今天没有比赛，查最近的下一个比赛日
-    const nextRows = await query(
-      `SELECT DISTINCT match_date FROM matches_ WHERE match_date > ? ORDER BY match_date LIMIT 1`,
-      [today]
+    // 未来没有比赛了，取最近5场已结束的
+    const recent = await query(
+      `${baseSql} ORDER BY m.match_date DESC, m.match_time DESC LIMIT 5`,
+      []
     );
-
-    if ((nextRows as any[]).length > 0) {
-      const nextDate = (nextRows as any[])[0].match_date;
-      const nextMatches = await query(
-        `${baseSql} WHERE m.match_date = ? ORDER BY m.match_time`,
-        [nextDate]
-      );
-      return NextResponse.json({
-        code: 200,
-        data: { matches: nextMatches, matchDate: nextDate, isToday: false },
-      });
-    }
-
-    // 未来没有比赛了，查最近一个已结束的比赛日
-    const lastRows = await query(
-      `SELECT DISTINCT match_date FROM matches_ WHERE match_date <= ? ORDER BY match_date DESC LIMIT 1`,
-      [today]
-    );
-
-    if ((lastRows as any[]).length > 0) {
-      const lastDate = (lastRows as any[])[0].match_date;
-      const lastMatches = await query(
-        `${baseSql} WHERE m.match_date = ? ORDER BY m.match_time`,
-        [lastDate]
-      );
-      return NextResponse.json({
-        code: 200,
-        data: { matches: lastMatches, matchDate: lastDate, isToday: false },
-      });
-    }
 
     return NextResponse.json({
       code: 200,
-      data: { matches: [], matchDate: today, isToday: true },
+      data: { matches: recent },
     });
   } catch (error: any) {
     return NextResponse.json(
