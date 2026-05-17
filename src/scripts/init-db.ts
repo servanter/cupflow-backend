@@ -140,6 +140,17 @@ async function initDatabase() {
       password VARCHAR(255) NOT NULL COMMENT '加密后的密码',
       created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP COMMENT '创建时间'
     ) COMMENT='后台管理员账号表'`,
+
+    `CREATE TABLE IF NOT EXISTS football_news (
+      id INT PRIMARY KEY AUTO_INCREMENT COMMENT '资讯唯一ID',
+      title VARCHAR(200) NOT NULL COMMENT '资讯标题',
+      tag VARCHAR(30) NOT NULL COMMENT '标签分类：经典回顾/球星故事/历届盘点/转会动态/战术解析',
+      cover_url VARCHAR(500) DEFAULT NULL COMMENT '封面图片链接',
+      video_url VARCHAR(500) DEFAULT NULL COMMENT '视频链接',
+      summary TEXT COMMENT '简要摘要',
+      content TEXT COMMENT '详细内容',
+      created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP COMMENT '发布时间'
+    ) COMMENT='往届足球赛事资讯内容表'`,
   ];
 
   for (const sql of tables) {
