@@ -10,7 +10,7 @@ export async function GET(request: NextRequest) {
     }
 
     const users = await query<any>(
-      "SELECT id, nickname, points, created_at FROM users WHERE id = ?",
+      "SELECT id, nickname, points, avatar_url, created_at FROM users WHERE id = ?",
       [user.id]
     );
 
