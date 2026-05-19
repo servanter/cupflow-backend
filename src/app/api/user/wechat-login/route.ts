@@ -22,10 +22,34 @@ async function getWxOpenid(code: string): Promise<{ openid: string; session_key:
 
 export async function POST(request: NextRequest) {
   try {
-    const { code, nickname, avatarUrl } = await request.json();
+    const { code } = await request.json();
 
     if (!code) {
       return NextResponse.json({ code: 400, message: "缺少微信code" }, { status: 400 });
+    }
+
+    // 开发环境 mock：微信开发者工具模拟器无法生成真实 code，用固定测试账号
+    const isMock = code.includes("mock") || code === "the code is a mock one";
+    if (isMock && process.env.NODE_ENV !== "production") {
+      const mockOpenid = "mock_openid_devtools_test";
+      let users = await query<any>("SELECT * FROM users WHERE openid = ?", [mockOpenid]);
+      let user: any;
+      if (users.length > 0) {
+        user = users[0];
+      } else {
+        const result = await execute(
+          "INSERT INTO users (nickname, password, openid, avatar_url, points, created_at) VALUES (?, ?, ?, ?, 0, NOW())",
+          ["测试用户", "", mockOpenid, ""]
+        );
+        const newUsers = await query<any>("SELECT * FROM users WHERE id = ?", [result.insertId]);
+        user = newUsers[0];
+      }
+      const token = signUserToken({ id: user.id, nickname: user.nickname });
+      return NextResponse.json({
+        code: 200,
+        message: "登录成功(mock)",
+        data: { token, userId: user.id, nickname: user.nickname, points: user.points || 0 },
+      });
     }
 
     // 用code换openid
@@ -45,16 +69,15 @@ export async function POST(request: NextRequest) {
     let user: any;
 
     if (users.length > 0) {
-      // 已注册用户，直接登录
       user = users[0];
     } else {
-      // 新用户：有真实昵称就用，否则用 openid 后6位
+      // 新用户：用 openid 后6位生成默认昵称，头像留空
       const suffix = openid.slice(-6).toUpperCase();
-      const finalNickname = (nickname && nickname !== "微信用户") ? nickname : `用户_${suffix}`;
+      const defaultNickname = `用户_${suffix}`;
 
       const result = await execute(
         "INSERT INTO users (nickname, password, openid, avatar_url, points, created_at) VALUES (?, ?, ?, ?, 0, NOW())",
-        [finalNickname, "", openid, avatarUrl || ""]
+        [defaultNickname, "", openid, ""]
       );
 
       const newUsers = await query<any>("SELECT * FROM users WHERE id = ?", [result.insertId]);
@@ -71,7 +94,6 @@ export async function POST(request: NextRequest) {
         userId: user.id,
         nickname: user.nickname,
         points: user.points || 0,
-        avatarUrl: user.avatar_url || "",
       },
     });
   } catch (error: any) {
