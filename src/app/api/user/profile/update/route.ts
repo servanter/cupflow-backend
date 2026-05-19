@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { execute } from "@/lib/db";
+import { execute, query } from "@/lib/db";
 import { getUserFromRequest } from "@/lib/auth";
 
 export async function POST(request: NextRequest) {
@@ -18,6 +18,15 @@ export async function POST(request: NextRequest) {
     const trimmedNickname = nickname.trim();
     if (trimmedNickname.length > 20) {
       return NextResponse.json({ code: 400, message: "昵称不能超过20个字符" }, { status: 400 });
+    }
+
+    // 检查昵称是否被其他用户使用
+    const existing = await query(
+      "SELECT id FROM users WHERE nickname = ? AND id != ?",
+      [trimmedNickname, user.id]
+    );
+    if (existing.length > 0) {
+      return NextResponse.json({ code: 400, message: "该昵称已被使用" }, { status: 400 });
     }
 
     await execute(
