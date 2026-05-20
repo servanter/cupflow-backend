@@ -1,5 +1,9 @@
 /** @type {import('next').NextConfig} */
 const nextConfig = {
+  // 启用 instrumentation.ts（后台调度器）
+  experimental: {
+    instrumentationHook: true,
+  },
   // 允许跨域请求（UniApp前端）
   async headers() {
     return [
