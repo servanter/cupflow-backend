@@ -12,6 +12,7 @@ const menuItems = [
   { label: "赛事管理", path: "/admin/matches", icon: "🏆" },
   { label: "文字直播", path: "/admin/live", icon: "📡" },
   { label: "精彩回放", path: "/admin/highlights", icon: "🎬" },
+  { label: "Banner管理", path: "/admin/banners", icon: "🖼️" },
   { label: "足球资讯", path: "/admin/news", icon: "📰" },
   { label: "评论管理", path: "/admin/comments", icon: "💬" },
   { label: "用户管理", path: "/admin/users", icon: "👥" },
