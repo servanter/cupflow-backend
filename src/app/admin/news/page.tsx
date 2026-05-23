@@ -33,9 +33,9 @@ export default function NewsPage() {
   const getToken = () => localStorage.getItem("admin_token") || "";
 
   const fetchNews = async () => {
-    const res = await fetch("/api/news");
+    const res = await fetch("/api/news?pageSize=1000");
     const data = await res.json();
-    if (data.code === 200) setNewsList(data.data);
+    if (data.code === 200) setNewsList(data.data.list || []);
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
