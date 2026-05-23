@@ -29,9 +29,9 @@ export default function HighlightsPage() {
   const getToken = () => localStorage.getItem("admin_token") || "";
 
   const fetchHighlights = async () => {
-    const res = await fetch("/api/highlights");
+    const res = await fetch("/api/highlights?pageSize=1000");
     const data = await res.json();
-    if (data.code === 200) setHighlights(data.data);
+    if (data.code === 200) setHighlights(data.data.list || []);
   };
 
   const fetchMatches = async () => {

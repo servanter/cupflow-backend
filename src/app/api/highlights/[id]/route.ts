@@ -11,6 +11,7 @@ export async function GET(
 
     const highlights = await query<any>(
       `SELECT h.*, t1.name as home_team_name, t2.name as away_team_name,
+        t1.flag_url as home_flag_url, t2.flag_url as away_flag_url,
         m.match_date, m.home_score, m.away_score
        FROM highlights h
        LEFT JOIN matches_ m ON h.match_id = m.id
