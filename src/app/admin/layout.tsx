@@ -16,6 +16,7 @@ const menuItems = [
   { label: "足球资讯", path: "/admin/news", icon: "📰" },
   { label: "评论管理", path: "/admin/comments", icon: "💬" },
   { label: "用户管理", path: "/admin/users", icon: "👥" },
+  { label: "微信提醒", path: "/admin/wx-subscriptions", icon: "🔔" },
 ];
 
 export default function AdminLayout({ children }: { children: React.ReactNode }) {

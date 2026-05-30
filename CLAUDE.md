@@ -6,8 +6,8 @@ Next.js 14 + React 18 + Shadcn/ui + Tailwind + MySQL（端口3000）
 ## 数据库
 - 地址: 101.96.207.88:3306
 - 库名: cupflow
-- 用户: root / HONGyan8158
-- 管理员账号: admin / admin123
+- 用户: root / `见 .env.local`
+- 管理员账号: admin / `见 .env.local`
 
 ## 启动命令
 ```bash
@@ -15,10 +15,15 @@ npm run dev
 
 # 数据库初始化（已执行过）
 npx tsx src/scripts/init-db.ts
-npx tsx src/scripts/seed-data.ts
+npx tsx src/scripts/seed-data.ts       # 已弃用（分组有误）
 npx tsx src/scripts/seed-players.ts
 npx tsx src/scripts/seed-news.ts
+
+# 数据更新（可重复执行，修正分组/教练/球员俱乐部）
+npx tsx src/scripts/update-2026-world-cup.ts
 ```
+
+> 📖 数据更新经验详见 [`docs/05_data_update_guide.md`](./docs/05_data_update_guide.md)
 
 ## 数据库表
 - `teams` - 48支参赛球队（国旗/大洲/教练/历史战绩）
@@ -80,3 +85,12 @@ npx tsx src/scripts/seed-news.ts
 - next.config 用 `.js` 格式（14.2.15不支持.ts）
 - `.env.local` 在根目录，含DB和JWT配置
 - 前端仓库: https://github.com/servanter/cupflow-frontend
+
+## 详细文档（按需查阅）
+| 文件 | 何时读 |
+|------|--------|
+| `docs/01_quick_start.md` | 启动报错、新建 API 模板、常见错误避坑 |
+| `docs/02_api_reference.md` | 查接口请求/响应格式 |
+| `docs/03_database.md` | 查表结构、写 SQL、数据库迁移 |
+| `docs/04_code_patterns.md` | 复制代码模板（GET/POST/认证/分页） |
+| `docs/05_data_update_guide.md` | 更新赛程/球队/球员数据 |
