@@ -20,19 +20,23 @@ export default function DashboardPage() {
       const token = localStorage.getItem("admin_token");
       const headers: any = { Authorization: `Bearer ${token}` };
 
-      const [teamsRes, matchesRes] = await Promise.all([
+      const [teamsRes, matchesRes, playersRes, usersRes] = await Promise.all([
         fetch("/api/teams", { headers }),
         fetch("/api/matches", { headers }),
+        fetch("/api/admin/players", { headers }),
+        fetch("/api/admin/users", { headers }),
       ]);
 
       const teamsData = await teamsRes.json();
       const matchesData = await matchesRes.json();
+      const playersData = await playersRes.json();
+      const usersData = await usersRes.json();
 
       setStats({
         teams: teamsData.data?.length || 0,
-        players: 0,
+        players: playersData.data?.length || 0,
         matches: matchesData.data?.length || 0,
-        users: 0,
+        users: usersData.data?.length || 0,
       });
     } catch (err) {
       console.error("获取统计数据失败:", err);
