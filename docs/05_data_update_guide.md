@@ -2,61 +2,159 @@
 
 ---
 
-## ⚡ 快速更新比分 SOP（每次赛后 15 分钟内完成）
+## ⚡ 赛后数据三件套 SOP（每次赛后 30 分钟内完成）
 
-> 这是最常用的场景，按此流程可大幅缩短更新时间。
+> 每场比赛结束后，需要同步更新三类数据：**① 比分** · **② 文字直播** · **③ 球员进球/助攻**。
+> 按此流程操作，避免遗漏。
 
-### 第一步：拉取最新比分（1～2 分钟）
+---
 
-直接用 **WebFetch** 访问以下地址（按优先级排序）：
+### 第一步：拉取比赛信息（1～2 分钟）
+
+用 **WebFetch** 或 **WebSearch** 获取：比分、进球球员、进球时间、助攻、红牌。
 
 ```
-# ✅ 优先用这个，实测可抓到实际比分（FT=已结束）
+# ✅ 优先：实测可抓到实际比分（FT=已结束）
 https://www.sofascore.com/tournament/football/world/fifa-world-cup/16
 
-# ✅ 备用，有比赛列表，但内容可能被截断
+# ✅ 备用
 https://www.flashscore.com/football/world/world-cup-2026/
 ```
 
-WebFetch prompt 固定用：
+WebFetch prompt：
 ```
-获取当前所有已结束比赛的比分和状态（FT表示已结束）
+获取所有已结束比赛的比分、进球球员姓名、进球时间、助攻球员
 ```
 
 如果 WebFetch 失败，改用 **WebSearch**，关键词：
 ```
-FIFA World Cup 2026 results today scores [具体日期如 June 13]
-2026世界杯今天比分结果 [具体组别如 B组 C组]
+FIFA World Cup 2026 results scorers [具体日期如 June 13]
+2026世界杯 今日比分 进球 [具体球队名]
 ```
 
-### 第二步：查出需要更新的比赛 ID（1 分钟）
+---
+
+### 第二步：查出比赛 ID（1 分钟）
 
 ```bash
-node -e "
-const mysql = require('mysql2/promise');
-async function run() {
-  const c = await mysql.createConnection({host:'101.96.207.88',port:3306,user:'root',password:'HONGyan8158',database:'cupflow'});
-  const [r] = await c.query(\"SELECT m.id, t1.name home, t2.name away, m.status, m.match_date FROM matches_ m JOIN teams t1 ON m.home_team_id=t1.id JOIN teams t2 ON m.away_team_id=t2.id WHERE m.status='未开始' AND m.match_date <= CURDATE() + INTERVAL 1 DAY ORDER BY m.match_date\");
-  console.log(JSON.stringify(r,null,2));
-  await c.end();
+npx tsx -e "
+import { query } from './src/lib/db';
+async function main() {
+  const r = await query(\`SELECT m.id, t1.name home, t2.name away, m.status, m.match_date
+    FROM matches_ m
+    JOIN teams t1 ON m.home_team_id=t1.id
+    JOIN teams t2 ON m.away_team_id=t2.id
+    WHERE m.status != '已结束'
+    ORDER BY m.match_date\`);
+  console.log(JSON.stringify(r, null, 2));
 }
-run().catch(console.error);
+main().then(() => process.exit(0));
 "
 ```
 
-### 第三步：复用精简模板（仅比分+直播）
+---
+
+### 第三步：更新比分 + 直播（复用模板）
 
 ```bash
-# 复制专用模板（只需改 ① ② 两处数据，其余不动）
 cp src/scripts/_template-update-scores.ts src/scripts/update-scores-YYYYMMDD.ts
-
-# 改完后执行
+# 只改 completedMatches（比分）和 liveData（直播事件）
 npx tsx src/scripts/update-scores-YYYYMMDD.ts
 ```
 
-模板位置：`src/scripts/_template-update-scores.ts`
-- **只需修改**：`completedMatches`（比分）和 `liveData`（直播事件）
-- **不需要动**：数据库连接、ID 查找逻辑等底层代码
+---
+
+### 第四步：更新球员进球/助攻 ⭐
+
+> **注意**：比分和进球是两回事！更新了 home_score/away_score，并不会自动更新 `players.goals`。
+> 必须单独执行这一步。
+
+#### 4-1. 先确认进球球员在不在 players 表
+
+```bash
+npx tsx -e "
+import { query } from './src/lib/db';
+async function main() {
+  // 按球队名筛选，核对球员名
+  const r = await query(\`SELECT p.id, p.name, p.goals, t.name as team
+    FROM players p JOIN teams t ON p.team_id = t.id
+    WHERE t.name = '墨西哥'\`);   // 改成对应球队
+  console.log(JSON.stringify(r, null, 2));
+}
+main().then(() => process.exit(0));
+"
+```
+
+#### 4-2. 若球员不存在，先插入
+
+进球球员不在库里时（常见于 128 名核心球员之外的冷门球员），用以下模板插入：
+
+```bash
+npx tsx -e "
+import { execute } from './src/lib/db';
+async function main() {
+  function avatar(name: string) {
+    return 'https://ui-avatars.com/api/?name=' + encodeURIComponent(name) + '&size=200&background=random';
+  }
+  await execute(
+    'INSERT INTO players (name, photo_url, team_id, birth_date, height, position, club, goals, assists) VALUES (?,?,?,?,?,?,?,?,?)',
+    ['希门尼斯', avatar('希门尼斯'), 3, '1991-05-05', '188cm', '前锋', '富勒姆', 0, 0]
+    //            ↑名字            ↑team_id      ↑生日       ↑身高  ↑位置   ↑俱乐部
+  );
+  console.log('插入成功');
+}
+main().then(() => process.exit(0));
+"
+```
+
+**team_id 速查**（常用球队）：
+
+| 球队 | team_id |
+|------|---------|
+| 阿根廷 | 1 |
+| 巴西 | 2 |
+| 墨西哥 | 3 |
+| 捷克 | 24 |
+| 韩国 | 27 |
+
+> 其他 team_id：`SELECT id, name FROM teams ORDER BY name`
+
+#### 4-3. 更新进球/助攻数
+
+```bash
+npx tsx -e "
+import { execute, query } from './src/lib/db';
+async function main() {
+  // ⬇️ 只改这里：player_id + 最新累计进球数
+  const updates = [
+    { id: 129, goals: 1, assists: 0 },  // 基尼奥内斯
+    { id: 130, goals: 1, assists: 0 },  // 希门尼斯
+  ];
+  for (const u of updates) {
+    await execute('UPDATE players SET goals=?, assists=? WHERE id=?', [u.goals, u.assists, u.id]);
+    console.log('更新 id=' + u.id + ' goals=' + u.goals);
+  }
+  // 验证：打印当前射手榜
+  const top = await query(\`SELECT p.name, p.goals, p.assists, t.name as team
+    FROM players p JOIN teams t ON p.team_id = t.id
+    WHERE p.goals > 0 ORDER BY p.goals DESC LIMIT 10\`);
+  console.log('\\n📊 射手榜:', JSON.stringify(top, null, 2));
+}
+main().then(() => process.exit(0));
+"
+```
+
+> **goals 填累计总数**，不是本场进球数。例如球员已有 2 球、本场再进 1 球 → 填 3。
+
+---
+
+### 第五步：验证 API（30 秒）
+
+```bash
+curl "http://localhost:3000/api/players/top-scorers?limit=10"
+```
+
+返回 `data` 数组非空即表示射手榜更新成功。
 
 ---
 
@@ -296,14 +394,30 @@ SELECT name, coach FROM teams ORDER BY name
 
 ---
 
-## 十、下次更新清单
+## 十、赛后更新清单（每场比赛结束后）
 
-世界杯期间如需更新数据，依次检查：
+> 按顺序勾选，全部完成后射手榜、直播、积分均实时准确。
 
-- [ ] **比分** — `home_score`, `away_score`, `status='已结束'`
-- [ ] **文字直播** — `live_messages`（先 DELETE 旧数据再 INSERT）
-- [ ] **球员俱乐部** — 赛季初有大批转会需更新
-- [ ] **主教练** — 偶有临时换帅
-- [ ] **球员进球/助攻** — `players.goals`, `players.assists`（目前未维护）
-- [ ] **精彩回放** — `highlights` 表
+- [ ] **① 比分** — `home_score`, `away_score`, `status='已结束'`（使用模板脚本）
+- [ ] **② 文字直播** — `live_messages`（先 DELETE 旧数据再 INSERT）
+- [ ] **③ 球员进球/助攻** — `players.goals`, `players.assists`（见上方第四步 SOP）
+- [ ] **精彩回放** — `highlights` 表（可选，有精彩集锦时补充）
 - [ ] 如有**淘汰赛**需新增赛程：`stage='淘汰赛'`，`group_name=NULL`
+
+**低频更新（赛季初或换帅时）：**
+- [ ] **球员俱乐部** — 赛季初大批转会时更新
+- [ ] **主教练** — 偶有临时换帅
+
+---
+
+## 十一、已录入进球球员记录（2026 世界杯）
+
+> 每次新增球员时追加此表，方便快速查 id。
+
+| id | 姓名 | 球队 | team_id | 进球 | 助攻 | 录入日期 |
+|----|------|------|---------|------|------|----------|
+| 129 | 基尼奥内斯 | 墨西哥 | 3 | 1 | 0 | 2026-06-12 |
+| 130 | 希门尼斯 | 墨西哥 | 3 | 1 | 0 | 2026-06-12 |
+
+> **A 组揭幕战（2026-06-11）**：墨西哥 2-0 南非
+> - 基尼奥内斯（9'）· 希门尼斯（67'）
